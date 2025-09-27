@@ -4,6 +4,13 @@
 #include <cmath>
 #include <cstdio>
 
+typedef struct {
+    lv_style_t items;
+    lv_style_t indicator;
+    lv_style_t main;
+} section_styles_t;
+
+
 class WindInstrument {
 public:
     // Create UI under parent (set your desired size)
@@ -28,11 +35,11 @@ public:
         lv_obj_set_style_transform_pivot_x(dial, dial_sz/2, 0);
         lv_obj_set_style_transform_pivot_y(dial, dial_sz/2, 0);
         lv_obj_set_style_bg_color(dial, lv_color_make(64,28,64), 0);
-        lv_scale_set_rotation(dial, 90); 
+        
 
         // Circular scale
         scale = lv_scale_create(dial);
-        lv_obj_set_size(scale, dial_sz - 8, dial_sz - 8);
+        lv_obj_set_size(scale, dial_sz - 60, dial_sz - 60);
         lv_obj_set_align(scale, LV_ALIGN_CENTER);
         lv_obj_center(scale);
         lv_scale_set_mode(scale, LV_SCALE_MODE_ROUND_INNER);
@@ -44,7 +51,6 @@ public:
         lv_scale_set_label_show(scale, true);
         //lv_obj_set_style_bg_color(scale, lv_color_make(255,28,255), 0);
 
-        // Style ticks
         lv_obj_set_style_line_color(scale, lv_color_make(180,180,180), LV_PART_ITEMS);
         lv_obj_set_style_length(scale, 8, LV_PART_ITEMS);
         lv_obj_set_style_line_width(scale, 2, LV_PART_ITEMS);
@@ -53,14 +59,43 @@ public:
         lv_obj_set_style_line_width(scale, 4, LV_PART_INDICATOR);
         lv_obj_set_style_text_color(scale, lv_color_white(),  LV_PART_INDICATOR);
 
+        windscale = lv_scale_create(dial);
+        lv_obj_set_size(windscale, dial_sz - 2, dial_sz - 2);
+        lv_obj_set_align(windscale, LV_ALIGN_CENTER);
+        lv_obj_center(windscale);
+        lv_scale_set_mode(windscale, LV_SCALE_MODE_ROUND_INNER);
+        lv_scale_set_range(windscale, 0, 360);
+        lv_scale_set_angle_range(windscale, 360);
+        lv_scale_set_rotation(windscale, -90);            // 0° at top
+        lv_scale_set_total_tick_count(windscale, 61);     // minor every 6°
+        lv_scale_set_major_tick_every(windscale, 5);      // major every 30°
+        lv_scale_set_label_show(windscale, false);
+
+        // Style ticks
+        lv_obj_set_style_line_color(windscale, lv_color_make(255,255,0), LV_PART_ITEMS);
+        lv_obj_set_style_length(windscale, 8, LV_PART_ITEMS);
+        lv_obj_set_style_line_width(windscale, 2, LV_PART_ITEMS);
+        lv_obj_set_style_line_color(windscale, lv_color_make(255,0,255), LV_PART_INDICATOR);
+        lv_obj_set_style_length(windscale, 16, LV_PART_INDICATOR);
+        lv_obj_set_style_line_width(windscale, 4, LV_PART_INDICATOR);
+        lv_obj_set_style_text_color(windscale, lv_color_make(180,0,180),  LV_PART_INDICATOR);
+        
+        /* Zone 3: (Green) */
+        init_section_styles(&greenarc_styles, lv_palette_main(LV_PALETTE_GREEN));
+        add_section(windscale, 300, 360, &greenarc_styles);
+
+        /* Zone 5: (Red) */
+        init_section_styles(&redarc_styles, lv_palette_main(LV_PALETTE_RED));
+        add_section(windscale, 0, 60, &redarc_styles);
+
         // Colored sectors (edit angles/widths to taste)
-        sector_g1 = make_sector(dial, dial_sz-4, lv_palette_main(LV_PALETTE_GREEN), 300, 360, 10);
+        //sector_g1 = make_sector(dial, dial_sz-4, lv_palette_main(LV_PALETTE_GREEN), 300, 360, 10);
         //sector_g2 = make_sector(dial, dial_sz-4, lv_palette_main(LV_PALETTE_GREEN),   0,  60, 10);
-        sector_r1 = make_sector(dial, dial_sz-4, lv_palette_main(LV_PALETTE_RED  ),  00,  60, 10);
+        //sector_r1 = make_sector(dial, dial_sz-4, lv_palette_main(LV_PALETTE_RED  ),  00,  60, 10);
         //sector_r2 = make_sector(dial, dial_sz-4, lv_palette_main(LV_PALETTE_RED  ), 300, 330, 10);
 
         // Cardinal letters (children of dial so they rotate with heading)
-        int r = dial_sz/2 - 26;
+        int r = dial_sz/2 - 46;
         lbl_N = place_cardinal(dial, "N", r, -90);
         lbl_E = place_cardinal(dial, "E", r,   0);
         lbl_S = place_cardinal(dial, "S", r,  90);
@@ -155,6 +190,33 @@ private:
     // helpers
     static float wrap360(float a){ a = fmodf(a,360.f); if(a<0) a+=360.f; return a; }
 
+    void init_section_styles(section_styles_t * styles, lv_color_t color)
+    {
+        lv_style_init(&styles->items);
+        lv_style_set_line_color(&styles->items, color);
+        lv_style_set_line_width(&styles->items, 0);
+
+        lv_style_init(&styles->indicator);
+        lv_style_set_line_color(&styles->indicator, color);
+        lv_style_set_line_width(&styles->indicator, 0);
+
+        lv_style_init(&styles->main);
+        lv_style_set_arc_color(&styles->main, color);
+        lv_style_set_arc_width(&styles->main, 8);
+    }
+
+    void add_section(lv_obj_t * target_scale,
+                        int32_t from,
+                        int32_t to,
+                        const section_styles_t * styles)
+    {
+        lv_scale_section_t * sec = lv_scale_add_section(target_scale);
+        lv_scale_set_section_range(target_scale, sec, from, to);
+        lv_scale_set_section_style_items(target_scale, sec, &styles->items);
+        lv_scale_set_section_style_indicator(target_scale, sec, &styles->indicator);
+        lv_scale_set_section_style_main(target_scale, sec, &styles->main);
+    }
+
     lv_obj_t* make_sector(lv_obj_t* parent, lv_coord_t sz, lv_color_t col,
                           uint16_t a1, uint16_t a2, uint16_t width)
     {
@@ -186,12 +248,14 @@ private:
     }
 
     // UI members
-    lv_obj_t *cont=nullptr, *dial=nullptr, *scale=nullptr;
+    lv_obj_t *cont=nullptr, *dial=nullptr, *scale=nullptr, *windscale=nullptr;;
     lv_obj_t *sector_g1=nullptr, *sector_g2=nullptr, *sector_r1=nullptr, *sector_r2=nullptr;
     lv_obj_t *needle=nullptr; lv_point_precise_t needle_pts[2]{};
     lv_obj_t *lbl_speed_cap=nullptr, *lbl_speed_val=nullptr, *lbl_speed_unit=nullptr;
     lv_obj_t *box_left=nullptr, *lbl_left=nullptr, *box_right=nullptr, *lbl_right=nullptr;
     lv_obj_t *lbl_heading=nullptr, *lbl_N=nullptr, *lbl_E=nullptr, *lbl_S=nullptr, *lbl_W=nullptr;
+    section_styles_t greenarc_styles;
+    section_styles_t redarc_styles;
     lv_coord_t dial_sz=0;
 };
 
